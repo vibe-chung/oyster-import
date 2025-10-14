@@ -4,13 +4,14 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/vibechung/oyster-import/db"
+	"github.com/vibechung/oyster-import/repo"
 
 	"github.com/spf13/cobra"
 )
@@ -18,39 +19,22 @@ import (
 // importCmd represents the import command
 var importCmd = &cobra.Command{
 	Use:   "import",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Import Oyster CSV data into a local SQLite database.",
+	Long: `Reads an exported Oyster card CSV file and loads all journey and transaction data into a local SQLite database (oyster.db).
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Example usage:
+  oyster-import import ~/Downloads/565384001.csv
+
+The database will contain a 'journeys' table with columns matching the CSV file header.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		csvPath := args[0]
-		db, err := sql.Open("sqlite3", "oyster.db")
+		dbConn, err := db.InitDB("oyster.db")
 		if err != nil {
-			fmt.Printf("Error opening database: %v\n", err)
+			fmt.Printf("Error initializing database: %v\n", err)
 			return
 		}
-		defer db.Close()
-
-		createTable := `CREATE TABLE IF NOT EXISTS journeys (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			date TEXT,
-			start_time TEXT,
-			end_time TEXT,
-			journey_action TEXT,
-			charge REAL,
-			credit REAL,
-			balance REAL,
-			note TEXT
-		);`
-		_, err = db.Exec(createTable)
-		if err != nil {
-			fmt.Printf("Error creating table: %v\n", err)
-			return
-		}
+		defer dbConn.Close()
 
 		file, err := os.Open(csvPath)
 		if err != nil {
@@ -75,8 +59,17 @@ to quickly create a Cobra application.`,
 				fmt.Printf("Skipping incomplete row %d: %v\n", i, row)
 				continue
 			}
-			_, err := db.Exec(`INSERT INTO journeys (date, start_time, end_time, journey_action, charge, credit, balance, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				row[0], row[1], row[2], row[3], parseFloat(row[4]), parseFloat(row[5]), parseFloat(row[6]), row[7])
+			journey := repo.Journey{
+				Date:          row[0],
+				StartTime:     row[1],
+				EndTime:       row[2],
+				JourneyAction: row[3],
+				Charge:        parseFloat(row[4]),
+				Credit:        parseFloat(row[5]),
+				Balance:       parseFloat(row[6]),
+				Note:          row[7],
+			}
+			err := repo.InsertJourney(dbConn, journey)
 			if err != nil {
 				fmt.Printf("Error inserting row %d: %v\n", i, err)
 			}
