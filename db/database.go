@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -19,7 +20,8 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		charge REAL,
 		credit REAL,
 		balance REAL,
-		note TEXT
+		note TEXT,
+		UNIQUE(date, start_time, end_time)
 	);`
 	_, err = db.Exec(createTable)
 	if err != nil {

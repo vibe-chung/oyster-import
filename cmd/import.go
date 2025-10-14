@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 
+	"database/sql"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vibechung/oyster-import/db"
 	"github.com/vibechung/oyster-import/repo"
@@ -50,7 +52,7 @@ The database will contain a 'journeys' table with columns matching the CSV file 
 			return
 		}
 
-		// Skip header
+		inserted := 0
 		for i, row := range records {
 			if i == 0 {
 				continue
@@ -71,10 +73,16 @@ The database will contain a 'journeys' table with columns matching the CSV file 
 			}
 			err := repo.InsertJourney(dbConn, journey)
 			if err != nil {
+				if err == sql.ErrNoRows {
+					// Row already exists, do not count as inserted
+					continue
+				}
 				fmt.Printf("Error inserting row %d: %v\n", i, err)
+			} else {
+				inserted++
 			}
 		}
-		fmt.Println("CSV import complete.")
+		fmt.Printf("CSV import complete. %d rows inserted.\n", inserted)
 	},
 }
 
