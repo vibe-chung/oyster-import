@@ -4,9 +4,13 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/spf13/cobra"
 )
@@ -24,6 +28,30 @@ to quickly create a Cobra application.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		csvPath := args[0]
+		db, err := sql.Open("sqlite3", "oyster.db")
+		if err != nil {
+			fmt.Printf("Error opening database: %v\n", err)
+			return
+		}
+		defer db.Close()
+
+		createTable := `CREATE TABLE IF NOT EXISTS journeys (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			date TEXT,
+			start_time TEXT,
+			end_time TEXT,
+			journey_action TEXT,
+			charge REAL,
+			credit REAL,
+			balance REAL,
+			note TEXT
+		);`
+		_, err = db.Exec(createTable)
+		if err != nil {
+			fmt.Printf("Error creating table: %v\n", err)
+			return
+		}
+
 		file, err := os.Open(csvPath)
 		if err != nil {
 			fmt.Printf("Error opening file: %v\n", err)
@@ -38,10 +66,35 @@ to quickly create a Cobra application.`,
 			return
 		}
 
+		// Skip header
 		for i, row := range records {
-			fmt.Printf("Row %d: %v\n", i, row)
+			if i == 0 {
+				continue
+			}
+			if len(row) < 8 {
+				fmt.Printf("Skipping incomplete row %d: %v\n", i, row)
+				continue
+			}
+			_, err := db.Exec(`INSERT INTO journeys (date, start_time, end_time, journey_action, charge, credit, balance, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				row[0], row[1], row[2], row[3], parseFloat(row[4]), parseFloat(row[5]), parseFloat(row[6]), row[7])
+			if err != nil {
+				fmt.Printf("Error inserting row %d: %v\n", i, err)
+			}
 		}
+		fmt.Println("CSV import complete.")
 	},
+}
+
+// parseFloat converts a string to float64, returning 0 if empty or invalid
+func parseFloat(s string) float64 {
+	if s == "" {
+		return 0
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
 
 func init() {
