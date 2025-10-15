@@ -20,13 +20,13 @@ import (
 // importCmd represents the import command
 var importCmd = &cobra.Command{
 	Use:   "import",
-	Short: "Import Oyster CSV data into a local SQLite database.",
-	Long: `Reads an exported Oyster card CSV file and loads all journey and transaction data into a local SQLite database (oyster.db).
+	Short: "Import one or more Oyster CSV files into a local SQLite database.",
+	Long: `Reads one or more exported Oyster card CSV files and loads all journey and transaction data into a local SQLite database (oyster.db).
 
 Example usage:
-	oyster-import import ~/Downloads/565384001.csv
+  oyster-import import ~/Downloads/565384001.csv ~/Downloads/other.csv
 
-The database will contain a 'journeys' table with columns matching the CSV file header.`,
+Each file's header row is automatically skipped. The database will contain a 'journeys' table with columns matching the CSV file header. Duplicate journeys are ignored.`,
 	Args: cobra.MinimumNArgs(1),
 	Run:  runImportCmd,
 }
