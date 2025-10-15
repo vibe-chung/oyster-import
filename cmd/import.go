@@ -27,71 +27,76 @@ Example usage:
 	oyster-import import ~/Downloads/565384001.csv
 
 The database will contain a 'journeys' table with columns matching the CSV file header.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MinimumNArgs(1),
 	Run:  runImportCmd,
 }
 
 func runImportCmd(cmd *cobra.Command, args []string) {
-	csvPath := args[0]
 	dbConn, err := db.InitDB("oyster.db")
 	if err != nil {
-		fmt.Printf("Error initializing database: %v\n", err)
+		fmt.Printf("error initializing database: %v\n", err)
 		return
 	}
 	defer dbConn.Close()
 
-	records, err := readCSV(csvPath)
-	if err != nil {
-		fmt.Printf("Error reading CSV: %v\n", err)
-		return
-	}
-
-	inserted := 0
-	for i, row := range records {
-		if i == 0 {
+	totalInserted := 0
+	for _, csvPath := range args {
+		records, err := readCSV(csvPath)
+		if err != nil {
+			fmt.Printf("error reading csv '%s': %v\n", csvPath, err)
 			continue
 		}
-		journey, err := parseJourneyRow(row, i)
-		if err != nil {
-			fmt.Println(err)
-			continue
+		inserted := 0
+		for i, row := range records {
+			inserted += processJourneyRow(dbConn, row, i, csvPath)
 		}
-		err = repo.InsertJourney(dbConn, journey)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				continue
-			}
-			fmt.Printf("Error inserting row %d: %v\n", i, err)
-		} else {
-			inserted++
-		}
+		fmt.Printf("File '%s' import complete. %d rows inserted.\n", csvPath, inserted)
+		totalInserted += inserted
 	}
-	fmt.Printf("CSV import complete. %d rows inserted.\n", inserted)
+	fmt.Printf("All files processed. Total rows inserted: %d\n", totalInserted)
 }
 
 // readCSV reads all records from a CSV file
 func readCSV(path string) ([][]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening file: %v", err)
+		return nil, fmt.Errorf("error opening file: %v", err)
 	}
 	defer file.Close()
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("Error reading CSV: %v", err)
+		return nil, fmt.Errorf("error reading csv: %v", err)
 	}
 	return records, nil
+}
+
+// processJourneyRow parses and inserts a journey row, returning 1 if inserted, 0 otherwise
+func processJourneyRow(dbConn *sql.DB, row []string, idx int, csvPath string) int {
+	journey, err := parseJourneyRow(row, idx)
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	err = repo.InsertJourney(dbConn, journey)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0
+		}
+		fmt.Printf("error inserting row %d in '%s': %v\n", idx, csvPath, err)
+		return 0
+	}
+	return 1
 }
 
 // parseJourneyRow parses a CSV row into a Journey struct, with error handling
 func parseJourneyRow(row []string, idx int) (repo.Journey, error) {
 	if len(row) < 8 {
-		return repo.Journey{}, fmt.Errorf("Skipping incomplete row %d: %v", idx, row)
+		return repo.Journey{}, fmt.Errorf("skipping incomplete row %d: %v", idx, row)
 	}
 	parsedDate, err := time.Parse("02-Jan-2006", row[0])
 	if err != nil {
-		return repo.Journey{}, fmt.Errorf("Skipping row %d due to invalid date: %v", idx, err)
+		return repo.Journey{}, fmt.Errorf("skipping row %d due to invalid date: %v", idx, err)
 	}
 	formattedDate := parsedDate.Format("2006-01-02")
 	return repo.Journey{
