@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"database/sql"
 
@@ -61,8 +62,16 @@ The database will contain a 'journeys' table with columns matching the CSV file 
 				fmt.Printf("Skipping incomplete row %d: %v\n", i, row)
 				continue
 			}
+			// Convert date from "16-Aug-2025" to "2025-08-16"
+			parsedDate, err := time.Parse("02-Jan-2006", row[0])
+			if err != nil {
+				fmt.Printf("Skipping row %d due to invalid date: %v\n", i, err)
+				continue
+			}
+			formattedDate := parsedDate.Format("2006-01-02")
+
 			journey := repo.Journey{
-				Date:          row[0],
+				Date:          formattedDate,
 				StartTime:     row[1],
 				EndTime:       row[2],
 				JourneyAction: row[3],
@@ -71,7 +80,7 @@ The database will contain a 'journeys' table with columns matching the CSV file 
 				Balance:       parseFloat(row[6]),
 				Note:          row[7],
 			}
-			err := repo.InsertJourney(dbConn, journey)
+			err = repo.InsertJourney(dbConn, journey)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					// Row already exists, do not count as inserted
