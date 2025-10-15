@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/v2"
 
 	"github.com/spf13/cobra"
 )
@@ -43,7 +43,7 @@ var publishCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		topic := client.Topic(topicName)
+		publisher := client.Publisher(topicName)
 
 		rows, err := dbConn.Query("SELECT id, date, start_time, end_time, journey_action, charge, credit, balance, note FROM journeys WHERE processed = 0")
 		if err != nil {
@@ -53,15 +53,15 @@ var publishCmd = &cobra.Command{
 		defer rows.Close()
 
 		type Journey struct {
-			ID            int     `json:"id"`
-			Date          string  `json:"date"`
-			StartTime     string  `json:"start_time"`
-			EndTime       string  `json:"end_time"`
-			JourneyAction string  `json:"journey_action"`
-			Charge        float64 `json:"charge"`
-			Credit        float64 `json:"credit"`
-			Balance       float64 `json:"balance"`
-			Note          string  `json:"note"`
+			ID            int    `json:"id"`
+			Date          string `json:"date"`
+			StartTime     string `json:"start_time"`
+			EndTime       string `json:"end_time"`
+			JourneyAction string `json:"journey_action"`
+			Charge        string `json:"charge"`
+			Credit        string `json:"credit"`
+			Balance       string `json:"balance"`
+			Note          string `json:"note"`
 		}
 
 		var journeys []Journey
@@ -83,7 +83,7 @@ var publishCmd = &cobra.Command{
 				fmt.Printf("error marshalling journey: %v\n", err)
 				continue
 			}
-			res := topic.Publish(ctx, &pubsub.Message{Data: data})
+			res := publisher.Publish(ctx, &pubsub.Message{Data: data})
 			_, err = res.Get(ctx)
 			if err != nil {
 				fmt.Printf("error publishing journey id %d: %v\n", j.ID, err)
@@ -96,6 +96,7 @@ var publishCmd = &cobra.Command{
 			}
 			published++
 		}
+		publisher.Stop()
 		fmt.Printf("Published %d journeys to Pub/Sub.\n", published)
 	},
 }
