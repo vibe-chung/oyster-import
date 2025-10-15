@@ -4,19 +4,17 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
-	"database/sql"
-
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/spf13/cobra"
 	"github.com/vibechung/oyster-import/db"
 	"github.com/vibechung/oyster-import/repo"
-
-	"github.com/spf13/cobra"
 )
 
 // importCmd represents the import command
@@ -26,73 +24,86 @@ var importCmd = &cobra.Command{
 	Long: `Reads an exported Oyster card CSV file and loads all journey and transaction data into a local SQLite database (oyster.db).
 
 Example usage:
-  oyster-import import ~/Downloads/565384001.csv
+	oyster-import import ~/Downloads/565384001.csv
 
 The database will contain a 'journeys' table with columns matching the CSV file header.`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		csvPath := args[0]
-		dbConn, err := db.InitDB("oyster.db")
-		if err != nil {
-			fmt.Printf("Error initializing database: %v\n", err)
-			return
-		}
-		defer dbConn.Close()
+	Run:  runImportCmd,
+}
 
-		file, err := os.Open(csvPath)
-		if err != nil {
-			fmt.Printf("Error opening file: %v\n", err)
-			return
-		}
-		defer file.Close()
+func runImportCmd(cmd *cobra.Command, args []string) {
+	csvPath := args[0]
+	dbConn, err := db.InitDB("oyster.db")
+	if err != nil {
+		fmt.Printf("Error initializing database: %v\n", err)
+		return
+	}
+	defer dbConn.Close()
 
-		reader := csv.NewReader(file)
-		records, err := reader.ReadAll()
-		if err != nil {
-			fmt.Printf("Error reading CSV: %v\n", err)
-			return
-		}
+	records, err := readCSV(csvPath)
+	if err != nil {
+		fmt.Printf("Error reading CSV: %v\n", err)
+		return
+	}
 
-		inserted := 0
-		for i, row := range records {
-			if i == 0 {
+	inserted := 0
+	for i, row := range records {
+		if i == 0 {
+			continue
+		}
+		journey, err := parseJourneyRow(row, i)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		err = repo.InsertJourney(dbConn, journey)
+		if err != nil {
+			if err == sql.ErrNoRows {
 				continue
 			}
-			if len(row) < 8 {
-				fmt.Printf("Skipping incomplete row %d: %v\n", i, row)
-				continue
-			}
-			// Convert date from "16-Aug-2025" to "2025-08-16"
-			parsedDate, err := time.Parse("02-Jan-2006", row[0])
-			if err != nil {
-				fmt.Printf("Skipping row %d due to invalid date: %v\n", i, err)
-				continue
-			}
-			formattedDate := parsedDate.Format("2006-01-02")
-
-			journey := repo.Journey{
-				Date:          formattedDate,
-				StartTime:     row[1],
-				EndTime:       row[2],
-				JourneyAction: row[3],
-				Charge:        parseFloat(row[4]),
-				Credit:        parseFloat(row[5]),
-				Balance:       parseFloat(row[6]),
-				Note:          row[7],
-			}
-			err = repo.InsertJourney(dbConn, journey)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					// Row already exists, do not count as inserted
-					continue
-				}
-				fmt.Printf("Error inserting row %d: %v\n", i, err)
-			} else {
-				inserted++
-			}
+			fmt.Printf("Error inserting row %d: %v\n", i, err)
+		} else {
+			inserted++
 		}
-		fmt.Printf("CSV import complete. %d rows inserted.\n", inserted)
-	},
+	}
+	fmt.Printf("CSV import complete. %d rows inserted.\n", inserted)
+}
+
+// readCSV reads all records from a CSV file
+func readCSV(path string) ([][]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening file: %v", err)
+	}
+	defer file.Close()
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("Error reading CSV: %v", err)
+	}
+	return records, nil
+}
+
+// parseJourneyRow parses a CSV row into a Journey struct, with error handling
+func parseJourneyRow(row []string, idx int) (repo.Journey, error) {
+	if len(row) < 8 {
+		return repo.Journey{}, fmt.Errorf("Skipping incomplete row %d: %v", idx, row)
+	}
+	parsedDate, err := time.Parse("02-Jan-2006", row[0])
+	if err != nil {
+		return repo.Journey{}, fmt.Errorf("Skipping row %d due to invalid date: %v", idx, err)
+	}
+	formattedDate := parsedDate.Format("2006-01-02")
+	return repo.Journey{
+		Date:          formattedDate,
+		StartTime:     row[1],
+		EndTime:       row[2],
+		JourneyAction: row[3],
+		Charge:        parseFloat(row[4]),
+		Credit:        parseFloat(row[5]),
+		Balance:       parseFloat(row[6]),
+		Note:          row[7],
+	}, nil
 }
 
 // parseFloat converts a string to float64, returning 0 if empty or invalid
