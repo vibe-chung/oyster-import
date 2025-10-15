@@ -21,6 +21,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		credit REAL,
 		balance REAL,
 		note TEXT,
+		processed INTEGER DEFAULT 0,
 		UNIQUE(date, start_time, end_time)
 	);`
 	_, err = db.Exec(createTable)
