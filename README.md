@@ -24,6 +24,19 @@ Import and store TFL Oyster csv files into a local sqlite database
 	- Only new rows are inserted; duplicates are ignored.
 	- The number of rows inserted is displayed after import.
 
+4. Export journeys as JSON:
+
+	```sh
+	./oyster-import export
+	```
+
+	To filter for commute journeys only:
+
+	```sh
+	./oyster-import export --commute-only
+	```
+	Commute journeys are defined as journeys on Tuesday, Wednesday, or Thursday with a start time between 7:00 and 9:59, and only if an end time is present.
+
 ## Project Structure
 - `cmd/import.go` — CLI command logic
 - `db/database.go` — Database initialization and schema

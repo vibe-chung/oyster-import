@@ -12,8 +12,8 @@ import (
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Export journeys from the database",
-	Long:  `Export journey records from the local database to a CSV file or stdout.`,
+	Short: "Export journeys as JSON",
+	Long:  `Export journey records from the local database as a JSON array to stdout. Supports optional filtering for commute journeys, defined as journeys on Tuesday, Wednesday, or Thursday with a start time between 7:00 and 9:59, and only if an end time is present, using the --commute-only flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		commuteOnly, _ := cmd.Flags().GetBool("commute-only")
 
