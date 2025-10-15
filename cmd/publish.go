@@ -53,18 +53,18 @@ var publishCmd = &cobra.Command{
 		defer rows.Close()
 
 		type Journey struct {
-			ID            int
-			Date          string
-			StartTime     string
-			EndTime       string
-			JourneyAction string
-			Charge        float64
-			Credit        float64
-			Balance       float64
-			Note          string
+			ID            int     `json:"id"`
+			Date          string  `json:"date"`
+			StartTime     string  `json:"start_time"`
+			EndTime       string  `json:"end_time"`
+			JourneyAction string  `json:"journey_action"`
+			Charge        float64 `json:"charge"`
+			Credit        float64 `json:"credit"`
+			Balance       float64 `json:"balance"`
+			Note          string  `json:"note"`
 		}
 
-		published := 0
+		var journeys []Journey
 		for rows.Next() {
 			var j Journey
 			err := rows.Scan(&j.ID, &j.Date, &j.StartTime, &j.EndTime, &j.JourneyAction, &j.Charge, &j.Credit, &j.Balance, &j.Note)
@@ -72,6 +72,12 @@ var publishCmd = &cobra.Command{
 				fmt.Printf("error scanning row: %v\n", err)
 				continue
 			}
+			journeys = append(journeys, j)
+		}
+		rows.Close()
+
+		published := 0
+		for _, j := range journeys {
 			data, err := json.Marshal(j)
 			if err != nil {
 				fmt.Printf("error marshalling journey: %v\n", err)
