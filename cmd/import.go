@@ -48,6 +48,9 @@ func runImportCmd(cmd *cobra.Command, args []string) {
 		}
 		inserted := 0
 		for i, row := range records {
+			if i == 0 {
+				continue // skip header row
+			}
 			inserted += processJourneyRow(dbConn, row, i, csvPath)
 		}
 		fmt.Printf("File '%s' import complete. %d rows inserted.\n", csvPath, inserted)
