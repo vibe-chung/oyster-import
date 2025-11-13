@@ -13,9 +13,10 @@ import (
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export journeys as JSON",
-	Long:  `Export journey records from the local database as a JSON array to stdout. Supports optional filtering for commute journeys, defined as journeys on Tuesday, Wednesday, or Thursday with a start time between 7:00 and 9:59, and only if an end time is present, using the --commute-only flag.`,
+	Long:  `Export journey records from the local database as a JSON array to stdout. Supports optional filtering for commute journeys, defined as journeys on Tuesday, Wednesday, or Thursday with a start time between 7:00 and 9:59, and only if an end time is present, using the --commute-only flag. Use the --tail flag to return only the chronologically last record.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		commuteOnly, _ := cmd.Flags().GetBool("commute-only")
+		tail, _ := cmd.Flags().GetBool("tail")
 
 		dbConn, err := sql.Open("sqlite3", "oyster.db")
 		if err != nil {
@@ -24,7 +25,12 @@ var exportCmd = &cobra.Command{
 		}
 		defer dbConn.Close()
 
-		rows, err := dbConn.Query("SELECT id, date, start_time, end_time, journey_action, charge, credit, balance, note FROM journeys ORDER BY date DESC")
+		query := "SELECT id, date, start_time, end_time, journey_action, charge, credit, balance, note FROM journeys ORDER BY date DESC, start_time DESC"
+		if tail {
+			query += " LIMIT 1"
+		}
+
+		rows, err := dbConn.Query(query)
 		if err != nil {
 			fmt.Printf("error querying journeys: %v\n", err)
 			return
@@ -96,4 +102,5 @@ func parseDateTime(dateStr, timeStr string) (time.Time, error) {
 func init() {
 	rootCmd.AddCommand(exportCmd)
 	exportCmd.Flags().BoolP("commute-only", "c", false, "Filter for commute journeys (Tue/Wed/Thu, 8-10am)")
+	exportCmd.Flags().BoolP("tail", "t", false, "Return only the chronologically last record")
 }
