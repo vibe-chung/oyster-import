@@ -100,7 +100,6 @@ func parseDateTime(dateStr, timeStr string) (time.Time, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(exportCmd)
 	exportCmd.Flags().BoolP("commute-only", "c", false, "Filter for commute journeys (Tue/Wed/Thu, 8-10am)")
 	exportCmd.Flags().BoolP("tail", "t", false, "Return only the chronologically last record")
 }

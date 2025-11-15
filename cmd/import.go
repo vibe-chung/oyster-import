@@ -127,7 +127,6 @@ func parseFloat(s string) float64 {
 }
 
 func init() {
-	rootCmd.AddCommand(importCmd)
 
 	// Here you will define your flags and configuration settings.
 

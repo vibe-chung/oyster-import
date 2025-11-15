@@ -102,7 +102,6 @@ var publishCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(publishCmd)
 
 	// Here you will define your flags and configuration settings.
 
