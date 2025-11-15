@@ -13,8 +13,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
-	"github.com/vibechung/oyster-import/db"
-	"github.com/vibechung/oyster-import/repo"
+	"github.com/vibe-chung/oyster-import/db"
+	"github.com/vibe-chung/oyster-import/repo"
 )
 
 // importCmd represents the import command

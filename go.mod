@@ -4,7 +4,7 @@ require (
 	github.com/spf13/cobra v1.10.1
 )
 
-module github.com/vibechung/oyster-import
+module github.com/vibe-chung/oyster-import
 
 go 1.24.2
 
