@@ -40,4 +40,5 @@ func init() {
 	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(publishCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(renameCmd)
 }
