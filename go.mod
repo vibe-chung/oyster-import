@@ -6,7 +6,7 @@ require (
 
 module github.com/vibe-chung/oyster-import
 
-go 1.24.2
+go 1.25.5
 
 require (
 	cloud.google.com/go v0.121.6 // indirect
